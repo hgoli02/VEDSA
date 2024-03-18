@@ -15,6 +15,8 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import f1_score
 from sklearn.metrics import classification_report
 
+time_bin_len = 400
+bins_num = 10
 
 
 parser = argparse.ArgumentParser(description='Process some integers.')
