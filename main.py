@@ -20,6 +20,8 @@ bins_num = 10
 max_cascade_in_each_bin=100000
 max_non_burst_twice_the_max_burst_in_bin=True
 test_size = 0.2
+index_file_addr = 'Datasets/index.csv'
+data_file_addr = 'Datasets/data.csv'
 
 
 parser = argparse.ArgumentParser(description='Process some integers.')
@@ -51,7 +53,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 train_cascades_read, test_cascades_read, train_spike_labels, \
 test_spike_labels, train_burst_labels, test_burst_labels = cascades_to_proper_survival_model_input_test_split(
-    index_file_addr=None, data_file_addr=None,
+    index_file_addr=index_file_addr, data_file_addr=data_file_addr,
     burst_bins_num=bins_num,
     max_cascade_in_each_bin=max_cascade_in_each_bin,
     time_bin_len=time_bin_len,
@@ -59,7 +61,7 @@ test_spike_labels, train_burst_labels, test_burst_labels = cascades_to_proper_su
     burst_min_len = burst_min_len,
     non_burst_max_len = non_burst_max_len,
     test_size = 0.2,
-    dataset_flag = dataset_flag)
+    dataset_flag = flag)
 
 
 train_cascades = train_cascades_read[:, :int(train_cascades_read.shape[1] * DATA_PERCENTAGE)]
