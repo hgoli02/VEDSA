@@ -17,6 +17,9 @@ from sklearn.metrics import classification_report
 
 time_bin_len = 400
 bins_num = 10
+max_cascade_in_each_bin=100000
+max_non_burst_twice_the_max_burst_in_bin=True
+test_size = 0.2
 
 
 parser = argparse.ArgumentParser(description='Process some integers.')
