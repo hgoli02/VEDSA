@@ -10,4 +10,4 @@ To install the project, follow these steps:
 ## Usage
 To use the project, run the following command:
 
-python main.py --dataset_path <path to dataset: POSIX path> --hours <observation length in hours: int> --burstminlen <minimum length of viral cascades for preprocessing> ----nonburstmaxlen <maximum length of non viral cascades for preprocessing>
+python main.py --dataset_path < path to dataset: POSIX path > --hours < observation length in hours: int > --burstminlen < minimum length of viral cascades for preprocessing > ----nonburstmaxlen < maximum length of non viral cascades for preprocessing >
