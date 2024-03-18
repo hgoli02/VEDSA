@@ -32,8 +32,8 @@ parser.add_argument('--nonburstmaxlen', type=int, default=600, help='bmaxlen')
 
 dataset = parser.parse_args().dataset
 hours = parser.parse_args().hours
-burstminlen = parser.parse_args().burstminlen
-nonburstmaxlen = parser.parse_args().nonburstmaxlen
+burst_min_len = parser.parse_args().burstminlen
+non_burst_max_len = parser.parse_args().nonburstmaxlen
 
 if dataset == 'twitter':
     flag = 1
