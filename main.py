@@ -66,7 +66,8 @@ test_spike_labels, train_burst_labels, test_burst_labels = cascades_to_proper_su
 
 train_cascades = train_cascades_read[:, :int(train_cascades_read.shape[1] * DATA_PERCENTAGE)]
 test_cascades = test_cascades_read[:, :int(test_cascades_read.shape[1] * DATA_PERCENTAGE)]
-
+max_len = len(train_cascades_read[0])
+print(f"max len = {max_len}")
 
 def get_dataloader(cascades, spike_labels, burst_labels, batch_size=128):
     dataset = TensorDataset(torch.from_numpy(cascades).float(),
