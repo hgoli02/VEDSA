@@ -83,6 +83,26 @@ def to_weibull_survival_function(lambdas, k, times):
 def to_weibull_survival_function_tensor(lambdas, k, times):
     return torch.exp(-torch.pow(times / lambdas, k))
 
+def to_rayleigh_survival_function(sigma, times, eps=1e-12):
+    times = np.maximum(times, eps)
+    sigma = np.maximum(sigma, eps)
+    return np.exp(- (times * times) / (2.0 * sigma * sigma))
+
+def to_rayleigh_survival_function_tensor(sigma, times, eps=1e-12):
+    times = torch.clamp(times, min=eps)
+    sigma = torch.clamp(sigma, min=eps)
+    return torch.exp(- (times * times) / (2.0 * sigma * sigma))
+
+def to_exponential_survival_function(lambdas, times, eps=1e-12):
+    # lambdas > 0 (scale). S(t) = exp(-t / λ)
+    times = np.maximum(times, eps)
+    lambdas = np.maximum(lambdas, eps)
+    return np.exp(-times / lambdas)
+
+def to_exponential_survival_function_tensor(lambdas, times, eps=1e-12):
+    times = torch.clamp(times, min=eps)
+    lambdas = torch.clamp(lambdas, min=eps)
+    return torch.exp(-times / lambdas)
 
 
 dataloader = get_dataloader(train_cascades, train_spike_labels, train_burst_labels)
@@ -93,6 +113,7 @@ criterion = loss_function
 model.train()
 for epoch in range(800):
     total_loss = 0
+    total_num = 0
 
     for cascades, spike_labels, burst_labels in dataloader:
         cascades = cascades.to(device)
@@ -106,8 +127,9 @@ for epoch in range(800):
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
+        total_num += len(cascades)
 
-    print("Epoch: {}, Loss: {}".format(epoch, total_loss))
+    print("Epoch: {}, Loss: {}".format(epoch, total_loss / total_num))
 
 
 model.eval()
