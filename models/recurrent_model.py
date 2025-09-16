@@ -54,6 +54,32 @@ def loss_function(lambdas, k, labels, times) -> torch.Tensor:
     return loss
 
 
+def loss_function_exponential(lambdas, k, labels, times) -> torch.Tensor:
+    """
+    this is run on all time steps of the cascade N (N > K)
+    """
+    log_survival = -lambdas * times
+    # inner_cost = -lambdas * times + torch.log(lambdas)
+    inner_cost = torch.log(lambdas)
+    # final_matrix = (1 - labels) * log_survival + inner_cost * labels
+    final_matrix = log_survival + inner_cost * labels
+    loss = -torch.sum(final_matrix)
+    return loss
+
+def loss_function_rayleigh(sigmas, k, labels, times) -> torch.Tensor:
+    """
+    this is run on all time steps of the cascade N (N > K)
+    """
+    log_survival = -torch.pow(times, 2) / (2 * torch.pow(sigmas, 2))  # TODO: Broadcasting Checked? Checked:TRUE
+    # inner_cost = torch.log(times / torch.pow(sigmas, 2)) - (torch.pow(times, 2) / 2 * torch.pow(sigmas, 2))
+    inner_cost = torch.log(times / torch.pow(sigmas, 2))
+    # final_matrix = (1 - labels) * log_survival + inner_cost * labels
+    final_matrix = log_survival + inner_cost * labels
+    loss = -torch.sum(final_matrix)
+    return loss
+    
+
+
 # calculat MAX_LEN_CASCADE
 def get_max_len_cascade(cascades):
     max_len = 0

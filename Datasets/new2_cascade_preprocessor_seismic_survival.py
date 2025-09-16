@@ -105,7 +105,7 @@ def read_digg_cascades(cascades_file_addr='../Datasets/digg_votes1.csv', verbose
 
     return cascades
 
-def read_wcascades(cascades_file_addr='datasets/weibo_cascades.txt'):
+def read_wcascades(cascades_file_addr='Datasets/weibo_cascades.txt'):
     with open(cascades_file_addr, 'r') as cascades_file:
 
         cascades = []

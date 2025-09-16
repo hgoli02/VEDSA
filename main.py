@@ -2,7 +2,7 @@ import argparse
 from Datasets.new2_cascade_preprocessor_seismic_survival import \
     uniformed_cascades_to_proper_survival_model_input_test_split_linear_diminishing as \
     cascades_to_proper_survival_model_input_test_split, get_one_hot_burst_times_from_labels_with_linear_time_diminishing
-from models.recurrent_model import RecurrentModel, loss_function
+from models.recurrent_model import RecurrentModel,  loss_function, loss_function_exponential, loss_function_rayleigh
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 import matplotlib.pyplot as plt
@@ -31,6 +31,9 @@ parser.add_argument('--dataset', type=str, default='twitter', help='twitter | di
 parser.add_argument('--hours', type=int, default=1, help='hours')
 parser.add_argument('--burstminlen', type=int, default=800, help='bminlen')
 parser.add_argument('--nonburstmaxlen', type=int, default=600, help='bmaxlen')
+parser.add_argument('--dist', default='rayleigh', choices=['weibull', 'rayleigh', 'exponential'], help='the distribution to use')
+
+args = parser.parse_args()
 
 dataset = parser.parse_args().dataset
 hours = parser.parse_args().hours
@@ -44,7 +47,7 @@ elif dataset == 'dig':
     flag = 2
     CTIME = 24 * 30
 elif dataset == 'weibo':
-    flag = 3
+    flag = 4
     CTIME = 24 * 60
 
 DATA_PERCENTAGE = (hours) / CTIME
@@ -76,39 +79,40 @@ def get_dataloader(cascades, spike_labels, burst_labels, batch_size=128):
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
     return dataloader
 
-
 def to_weibull_survival_function(lambdas, k, times):
     return np.exp(-np.power(times / lambdas, k))
 
 def to_weibull_survival_function_tensor(lambdas, k, times):
     return torch.exp(-torch.pow(times / lambdas, k))
 
-def to_rayleigh_survival_function(sigma, times, eps=1e-12):
-    times = np.maximum(times, eps)
-    sigma = np.maximum(sigma, eps)
-    return np.exp(- (times * times) / (2.0 * sigma * sigma))
+def to_rayleigh_survival_function_tensor(sigmas, times):
+    return torch.exp(-torch.pow(times, 2) / (2 * torch.pow(sigmas, 2)))
 
-def to_rayleigh_survival_function_tensor(sigma, times, eps=1e-12):
-    times = torch.clamp(times, min=eps)
-    sigma = torch.clamp(sigma, min=eps)
-    return torch.exp(- (times * times) / (2.0 * sigma * sigma))
+def to_rayleigh_survival_function(sigmas, times):
+    return np.exp(-np.power(times, 2) / (2 * np.power(sigmas, 2)))
 
-def to_exponential_survival_function(lambdas, times, eps=1e-12):
-    # lambdas > 0 (scale). S(t) = exp(-t / λ)
-    times = np.maximum(times, eps)
-    lambdas = np.maximum(lambdas, eps)
-    return np.exp(-times / lambdas)
+def to_exponential_survival_function_tensor(lambdas, times):
+    return torch.exp(-lambdas * times)
 
-def to_exponential_survival_function_tensor(lambdas, times, eps=1e-12):
-    times = torch.clamp(times, min=eps)
-    lambdas = torch.clamp(lambdas, min=eps)
-    return torch.exp(-times / lambdas)
+def to_exponential_survival_function(lambdas, times):
+    return np.exp(-lambdas * times)
+
 
 
 dataloader = get_dataloader(train_cascades, train_spike_labels, train_burst_labels)
 model = RecurrentModel(1, 32).to(device)
+
+    
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-criterion = loss_function
+criterion = None
+if parser.parse_args().dist == 'weibull':
+    criterion = loss_function
+elif parser.parse_args().dist == 'exponential':
+    criterion = loss_function_exponential
+elif parser.parse_args().dist == 'rayleigh':
+    criterion = loss_function_rayleigh
+else:
+    raise ValueError("Unknown distribution: {}".format(parser.parse_args().dist))
 
 model.train()
 for epoch in range(800):
@@ -152,7 +156,12 @@ with torch.no_grad():
     test_case = test_case.detach().cpu().numpy()
     survival_function_train = []
     for i in range(len(lambdas)):
-        survival_function_train.append(to_weibull_survival_function(lambdas[i], k[i], times))
+        if args.dist == 'weibull':
+            survival_function_train.append(to_weibull_survival_function(lambdas[i], k[i], times))
+        elif args.dist == 'rayleigh':
+            survival_function_train.append(to_rayleigh_survival_function(lambdas[i], times))
+        elif args.dist == 'exponential':
+            survival_function_train.append(to_exponential_survival_function(lambdas[i], times))
 
 survival_function_train = np.array(survival_function_train)
 survival_function_train = torch.Tensor(survival_function_train)
@@ -224,7 +233,12 @@ with torch.no_grad():
     test_case = test_case.detach().cpu().numpy()
     survival_function_test = []
     for i in range(len(lambdas)):
-        survival_function_test.append(to_weibull_survival_function(lambdas[i], k[i], times))
+        if args.dist == 'weibull':
+            survival_function_test.append(to_weibull_survival_function(lambdas[i], k[i], times))
+        elif args.dist == 'rayleigh':
+            survival_function_test.append(to_rayleigh_survival_function(lambdas[i], times))
+        elif args.dist == 'exponential':
+            survival_function_test.append(to_exponential_survival_function(lambdas[i], times))
 
 survival_function_test = torch.Tensor(np.array(survival_function_test))
 survival_function_test = survival_function_test.view(survival_function_test.shape[0], 1, -1)
@@ -232,11 +246,18 @@ survival_function_test = survival_function_test.to(device)
 
 torch.save(best_model, "second_model_state_dict.pt")
 second_model.load_state_dict(torch.load("second_model_state_dict.pt"))
-output = second_model(survival_function_test)
 
-output_t_f = (output > 0).cpu().numpy()
-print("Accuracy Burst: {}".format(accuracy_score(test_burst_labels, output_t_f)))
-print("F1 score Burst: {}".format(f1_score(test_burst_labels, output_t_f)))
-print("Precison - Recall - Fscore")
-print(precision_recall_fscore_support(test_burst_labels, output_t_f, average='binary'))
-print(classification_report(test_burst_labels, output_t_f, target_names=['non burst', 'burst'], digits=4))
+second_model.eval()
+with torch.no_grad():
+    logits = second_model(survival_function_test)                 # shape (N, 1)
+    probs = torch.sigmoid(logits).squeeze(-1)                     # shape (N,)
+    y_pred = (probs > 0.5).cpu().numpy().astype(int)              # shape (N,)
+    y_true = np.asarray(test_burst_labels).astype(int).ravel()    # shape (N,)
+
+from sklearn.metrics import accuracy_score, f1_score, classification_report, precision_recall_fscore_support
+
+print("Accuracy Burst:", accuracy_score(y_true, y_pred))
+print("F1 score Burst:", f1_score(y_true, y_pred, average='binary'))
+print("Precision-Recall-F1:", precision_recall_fscore_support(y_true, y_pred, average='binary'))
+print(classification_report(y_true, y_pred, target_names=['non burst','burst'], digits=4))
+

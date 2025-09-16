@@ -6,7 +6,8 @@
 /bin/
 /build/
 /out/
-
+*.txt
+*.zip
 # Ignore package manager directories
 /node_modules/
 /packages/
